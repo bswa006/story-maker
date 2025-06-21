@@ -20,26 +20,24 @@ export function OutputSelection({ onSelect }: OutputSelectionProps) {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-violet-50 to-purple-100 p-4">
+    <div className="min-h-screen bg-gradient-to-br from-violet-50 to-purple-100 pb-24">
       {/* Header */}
-      <div className="sticky top-0 z-50 bg-white/95 backdrop-blur-lg rounded-2xl border border-gray-200/50 shadow-lg mb-6">
-        <div className="flex items-center justify-between px-5 py-3">
-          <div>
-            <h1 className="text-xl font-bold text-gray-900">Save Your Story</h1>
-            <p className="text-sm text-gray-600">Choose how you&apos;d like to preserve this magical journey</p>
-          </div>
+      <div className="sticky top-0 z-50 bg-white/95 backdrop-blur-lg border-b border-gray-200/50 shadow-sm">
+        <div className="px-4 py-4">
+          <h1 className="text-xl font-bold text-gray-900 text-center">Save Your Story</h1>
+          <p className="text-sm text-gray-600 text-center mt-1">Choose how you&apos;d like to preserve this magical journey</p>
         </div>
       </div>
 
       {/* Output Options Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-20">
+      <div className="p-4 space-y-4">
         {OUTPUT_OPTIONS.map((option) => (
           <div
             key={option.id}
             onClick={() => setSelectedFormat(option.id)}
             className={`relative bg-white rounded-2xl border-2 transition-all cursor-pointer ${
               selectedFormat === option.id
-                ? 'border-violet-500 shadow-lg scale-[1.02]'
+                ? 'border-violet-500 shadow-lg'
                 : 'border-gray-200 hover:border-violet-300'
             }`}
           >
@@ -91,7 +89,7 @@ export function OutputSelection({ onSelect }: OutputSelectionProps) {
       </div>
 
       {/* Continue Button */}
-      <div className="fixed bottom-4 left-4 right-4 z-50">
+      <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 p-4 z-50">
         <button
           onClick={handleContinue}
           disabled={!selectedFormat}

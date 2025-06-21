@@ -92,7 +92,7 @@ export function SaveStoryFlow({ storybook, onClose }: SaveStoryFlowProps) {
   };
 
   return (
-    <div className="fixed inset-0 z-[100] bg-white">
+    <div className="fixed inset-0 z-[100] bg-white overflow-y-auto">
       {currentStep === 'output' && (
         <OutputSelection
           storybookId={storybook.id}
