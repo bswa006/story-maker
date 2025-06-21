@@ -1,5 +1,4 @@
 {
   "framework": "nextjs",
-  "buildCommand": "cd apps/web && npm run build",
-  "installCommand": "npm install"
+  "rootDirectory": "apps/web"
 }
