@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { Storybook } from '@/types/storybook';
 import { STORY_ANIMALS } from '@/data/story-template';
+import { SaveStoryFlow } from '@/components/save-story/save-story-flow';
 
 // Mobile App Story Viewer Component
 function StoryViewer({ storybook }: { storybook: Storybook }) {
@@ -10,6 +11,7 @@ function StoryViewer({ storybook }: { storybook: Storybook }) {
   const [isGeneratingImages, setIsGeneratingImages] = useState(false);
   const [updatedStorybook, setUpdatedStorybook] = useState(storybook);
   const [imageLoadingStates, setImageLoadingStates] = useState<Record<string, boolean>>({});
+  const [showSaveFlow, setShowSaveFlow] = useState(false);
 
   // Generate images when storybook is created
   useEffect(() => {
@@ -232,7 +234,10 @@ function StoryViewer({ storybook }: { storybook: Storybook }) {
             <span className="text-xl">←</span>
           </button>
 
-          <button className="flex-1 mx-4 bg-emerald-500 text-white py-4 rounded-2xl font-semibold shadow-lg active:scale-95 transition-all">
+          <button 
+            onClick={() => setShowSaveFlow(true)}
+            className="flex-1 mx-4 bg-emerald-500 text-white py-4 rounded-2xl font-semibold shadow-lg active:scale-95 transition-all"
+          >
             📥 Save Story
           </button>
 
@@ -249,6 +254,14 @@ function StoryViewer({ storybook }: { storybook: Storybook }) {
           </button>
         </div>
       </div>
+
+      {/* Save Story Flow Modal */}
+      {showSaveFlow && (
+        <SaveStoryFlow
+          storybook={updatedStorybook}
+          onClose={() => setShowSaveFlow(false)}
+        />
+      )}
     </div>
   );
 }
