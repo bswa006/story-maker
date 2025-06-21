@@ -87,7 +87,8 @@ async function generatePersonalizedImage(prompt: string, childDescription: strin
   }
 }
 
-// Helper function to swap face using Replicate InstantID
+// Helper function to swap face using Replicate InstantID (currently unused but kept for future implementation)
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 async function swapFaceWithReplicate(baseImageUrl: string, faceImageUrl: string, prompt: string): Promise<string> {
   try {
     console.log('Starting Replicate InstantID face swap...');

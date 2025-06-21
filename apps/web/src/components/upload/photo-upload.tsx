@@ -32,7 +32,7 @@ export function PhotoUpload({ onPhotoSelect, className }: PhotoUploadProps) {
     },
     maxFiles: 1,
     multiple: false
-  } as any);
+  });
 
   const removePhoto = () => {
     setPreview(null);
@@ -48,12 +48,12 @@ export function PhotoUpload({ onPhotoSelect, className }: PhotoUploadProps) {
             isDragActive ? "border-primary bg-primary/5" : "border-muted-foreground/25 hover:border-primary/50"
           )}
         >
-          <input {...getInputProps() as any} />
+          <input {...getInputProps()} />
           <Upload className="w-12 h-12 mx-auto mb-4 text-muted-foreground" />
           <p className="text-sm text-muted-foreground">
             {isDragActive
               ? "Drop the photo here..."
-              : "Drag & drop your child's photo here, or click to select"}
+              : "Drag & drop your child&apos;s photo here, or click to select"}
           </p>
           <p className="text-xs text-muted-foreground mt-2">
             Supports: JPG, PNG, WebP
@@ -63,7 +63,7 @@ export function PhotoUpload({ onPhotoSelect, className }: PhotoUploadProps) {
         <div className="relative">
           <img
             src={preview}
-            alt="Child's photo"
+            alt="Child&apos;s photo"
             className="w-full max-w-md mx-auto rounded-lg shadow-lg"
           />
           <button

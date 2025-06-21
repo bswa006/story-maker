@@ -16,7 +16,7 @@ function StoryViewer({ storybook }: { storybook: Storybook }) {
     if (storybook.status === 'created') {
       generateImages();
     }
-  }, [storybook]);
+  }, [storybook]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const generateImages = async () => {
     setIsGeneratingImages(true);
@@ -421,7 +421,7 @@ export default function Home() {
               <div className="w-8 h-8 bg-gradient-to-br from-pink-500 to-rose-600 rounded-lg flex items-center justify-center">
                 <span className="text-white text-sm">👋</span>
               </div>
-              <label className="text-lg font-semibold text-gray-900">Child's Name</label>
+              <label className="text-lg font-semibold text-gray-900">Child&apos;s Name</label>
             </div>
             <input
               type="text"
@@ -440,7 +440,7 @@ export default function Home() {
               <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-cyan-600 rounded-lg flex items-center justify-center">
                 <span className="text-white text-sm">📸</span>
               </div>
-              <label className="text-lg font-semibold text-gray-900">Child's Photo</label>
+              <label className="text-lg font-semibold text-gray-900">Child&apos;s Photo</label>
             </div>
             
             <input
@@ -461,14 +461,14 @@ export default function Home() {
                 <div className="w-16 h-16 bg-gradient-to-br from-blue-100 to-purple-100 rounded-2xl mx-auto mb-4 flex items-center justify-center">
                   <span className="text-2xl">🎨</span>
                 </div>
-                <p className="text-gray-700 font-medium mb-1">Drop your child's photo here</p>
+                <p className="text-gray-700 font-medium mb-1">Drop your child&apos;s photo here</p>
                 <p className="text-gray-500 text-sm">or tap to browse • JPG, PNG up to 10MB</p>
               </div>
             ) : (
               <div className="relative">
                 <img
                   src={photoPreview}
-                  alt="Child's photo preview"
+                  alt="Child&apos;s photo preview"
                   className="w-full h-48 object-cover rounded-xl"
                 />
                 <button
