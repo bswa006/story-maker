@@ -1,7 +1,4 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { writeFile, mkdir } from 'fs/promises';
-import path from 'path';
-import { randomUUID } from 'crypto';
 
 export async function POST(request: NextRequest) {
   try {
@@ -15,28 +12,42 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Validate file type
+    if (!file.type.startsWith('image/')) {
+      return NextResponse.json(
+        { error: 'Only image files are allowed' },
+        { status: 400 }
+      );
+    }
+
+    // Validate file size (max 10MB)
+    const maxSize = 10 * 1024 * 1024; // 10MB
+    if (file.size > maxSize) {
+      return NextResponse.json(
+        { error: 'File size too large. Maximum 10MB allowed.' },
+        { status: 400 }
+      );
+    }
+
+    console.log('Processing file upload:', {
+      name: file.name,
+      type: file.type,
+      size: file.size
+    });
+
+    // Convert file to base64 data URL for Vercel compatibility
     const bytes = await file.arrayBuffer();
     const buffer = Buffer.from(bytes);
+    const base64 = buffer.toString('base64');
+    const dataUrl = `data:${file.type};base64,${base64}`;
 
-    // Create uploads directory if it doesn't exist
-    const uploadsDir = path.join(process.cwd(), 'public', 'uploads');
-    await mkdir(uploadsDir, { recursive: true });
-
-    // Generate unique filename
-    const uniqueId = randomUUID();
-    const ext = path.extname(file.name);
-    const filename = `${uniqueId}${ext}`;
-    const filepath = path.join(uploadsDir, filename);
-
-    // Write file
-    await writeFile(filepath, buffer);
-
-    // Return public URL
-    const publicUrl = `/uploads/${filename}`;
+    console.log('File converted to data URL successfully');
 
     return NextResponse.json({
-      url: publicUrl,
-      filename: filename
+      url: dataUrl,
+      filename: file.name,
+      type: file.type,
+      size: file.size
     });
 
   } catch (error) {
