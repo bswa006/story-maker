@@ -63,27 +63,60 @@ export function PaymentCheckout({
       });
 
       if (!response.ok) {
-        throw new Error('Failed to create order');
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to create order');
       }
 
-      const { orderId, razorpayOrderId, razorpayKey } = await response.json();
+      const { orderId, razorpayOrderId, razorpayKey, currency } = await response.json();
+
+      if (!window.Razorpay) {
+        throw new Error('Razorpay script not loaded');
+      }
 
       // Configure Razorpay options
       const options = {
-        key: razorpayKey || process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID,
+        key: razorpayKey,
         amount: amount * 100,
-        currency: 'INR',
+        currency: currency || 'INR',
         name: 'StoryMaker',
         description: `${selectedOption?.name} - ${customerInfo.name}'s Storybook`,
+        image: '/favicon.ico', // Optional logo
         order_id: razorpayOrderId,
-        handler: function (response: any) { // eslint-disable-line @typescript-eslint/no-explicit-any
-          // Payment successful
-          onSuccess(response.razorpay_payment_id, orderId);
+        handler: async function (response: any) { // eslint-disable-line @typescript-eslint/no-explicit-any
+          try {
+            // Verify payment on backend
+            const verifyResponse = await fetch('/api/payment/verify', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                razorpay_order_id: response.razorpay_order_id,
+                razorpay_payment_id: response.razorpay_payment_id,
+                razorpay_signature: response.razorpay_signature,
+                orderId
+              })
+            });
+
+            if (verifyResponse.ok) {
+              const verifyData = await verifyResponse.json();
+              onSuccess(verifyData.paymentId, verifyData.orderId);
+            } else {
+              throw new Error('Payment verification failed');
+            }
+          } catch (error) {
+            console.error('Payment verification error:', error);
+            setError('Payment verification failed. Please contact support.');
+            setIsLoading(false);
+          }
         },
         prefill: {
           name: customerInfo.name,
           email: customerInfo.email,
-          contact: customerInfo.phone
+          contact: `+91${customerInfo.phone}`
+        },
+        notes: {
+          storybookId,
+          outputFormat,
+          customerEmail: customerInfo.email
         },
         theme: {
           color: '#8b5cf6'
@@ -91,17 +124,26 @@ export function PaymentCheckout({
         modal: {
           ondismiss: function() {
             setIsLoading(false);
-          }
+          },
+          escape: true,
+          animation: true
         }
       };
 
       // Open Razorpay checkout
       const razorpay = new window.Razorpay(options);
+      
+      razorpay.on('payment.failed', function (response: any) { // eslint-disable-line @typescript-eslint/no-explicit-any
+        console.error('Payment failed:', response.error);
+        setError(`Payment failed: ${response.error.description || 'Unknown error'}`);
+        setIsLoading(false);
+      });
+
       razorpay.open();
 
     } catch (err) {
       console.error('Payment error:', err);
-      setError('Failed to initiate payment. Please try again.');
+      setError(err instanceof Error ? err.message : 'Failed to initiate payment. Please try again.');
       setIsLoading(false);
     }
   };
