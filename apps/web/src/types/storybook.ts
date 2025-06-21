@@ -14,7 +14,7 @@ export interface Storybook {
   childPhotoUrl?: string;
   pages: StoryPage[];
   createdAt: Date;
-  status: 'draft' | 'generating' | 'completed' | 'error';
+  status: 'draft' | 'created' | 'generating' | 'completed' | 'error';
 }
 
 export interface GenerateImageRequest {

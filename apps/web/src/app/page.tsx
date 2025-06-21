@@ -13,18 +13,28 @@ function StoryViewer({ storybook }: { storybook: Storybook }) {
 
   // Generate images when storybook is created
   useEffect(() => {
-    if (storybook.status === 'draft') {
+    if (storybook.status === 'created') {
+      console.log('Storybook created, starting image generation...');
       generateImages();
     }
   }, [storybook]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const generateImages = async () => {
+    console.log('Starting image generation for storybook:', updatedStorybook);
     setIsGeneratingImages(true);
     const updatedPages = [...updatedStorybook.pages];
+
+    console.log('Total pages to generate:', updatedPages.length);
 
     // Generate images for each page
     for (let i = 0; i < updatedPages.length; i++) {
       const page = updatedPages[i];
+      
+      console.log(`Generating image for page ${i + 1}/${updatedPages.length}:`, {
+        pageId: page.id,
+        prompt: page.imagePrompt,
+        childPhotoUrl: storybook.childPhotoUrl ? 'present' : 'missing'
+      });
       
       // Set loading state for this specific page
       setImageLoadingStates(prev => ({ ...prev, [page.id]: true }));
@@ -40,16 +50,22 @@ function StoryViewer({ storybook }: { storybook: Storybook }) {
           })
         });
 
+        console.log(`Image generation response for page ${i + 1}:`, response.status);
+
         if (response.ok) {
           const result = await response.json();
+          console.log(`Image generated successfully for page ${i + 1}`);
           updatedPages[i] = { ...page, imageUrl: result.imageUrl };
           setUpdatedStorybook(prev => ({
             ...prev,
             pages: [...updatedPages]
           }));
+        } else {
+          const errorText = await response.text();
+          console.error(`Failed to generate image for page ${i + 1}:`, response.status, errorText);
         }
       } catch (error) {
-        console.error('Failed to generate image for page', i, error);
+        console.error('Failed to generate image for page', i + 1, error);
       }
       
       // Remove loading state for this page
