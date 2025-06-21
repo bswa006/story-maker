@@ -3,7 +3,8 @@
   "tasks": {
     "build": {
       "dependsOn": ["^build"],
-      "outputs": [".next/**", "!.next/cache/**", "dist/**"]
+      "outputs": [".next/**", "!.next/cache/**", "dist/**"],
+      "env": ["OPENAI_API_KEY", "REPLICATE_API_TOKEN", "RAZORPAY_KEY_ID", "RAZORPAY_KEY_SECRET"]
     },
     "dev": {
       "cache": false,

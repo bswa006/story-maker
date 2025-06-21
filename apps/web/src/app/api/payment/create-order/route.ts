@@ -2,12 +2,6 @@ import { NextRequest, NextResponse } from 'next/server';
 import Razorpay from 'razorpay';
 import crypto from 'crypto';
 
-// Initialize Razorpay instance
-const razorpay = new Razorpay({
-  key_id: process.env.RAZORPAY_KEY_ID || '',
-  key_secret: process.env.RAZORPAY_KEY_SECRET || ''
-});
-
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
@@ -38,6 +32,12 @@ export async function POST(request: NextRequest) {
         { status: 500 }
       );
     }
+
+    // Initialize Razorpay instance with environment variables
+    const razorpay = new Razorpay({
+      key_id: process.env.RAZORPAY_KEY_ID,
+      key_secret: process.env.RAZORPAY_KEY_SECRET
+    });
 
     // Generate unique receipt ID
     const receipt = `receipt_${Date.now()}_${crypto.randomBytes(4).toString('hex')}`;
