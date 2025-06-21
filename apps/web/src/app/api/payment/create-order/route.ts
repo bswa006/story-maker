@@ -27,6 +27,18 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Check for placeholder values
+    if (process.env.RAZORPAY_KEY_ID.includes('placeholder') || 
+        process.env.RAZORPAY_KEY_SECRET.includes('placeholder')) {
+      return NextResponse.json(
+        { 
+          error: 'Razorpay API keys not configured. Please add your actual keys from https://dashboard.razorpay.com/app/keys',
+          details: 'Replace placeholder values in environment variables'
+        },
+        { status: 500 }
+      );
+    }
+
     // Generate unique receipt ID
     const receipt = `receipt_${Date.now()}_${crypto.randomBytes(4).toString('hex')}`;
 
@@ -77,8 +89,18 @@ export async function POST(request: NextRequest) {
 
   } catch (error) {
     console.error('Create order error:', error);
+    let errorMessage = 'Unknown error';
+    
+    if (error instanceof Error) {
+      errorMessage = error.message;
+    } else if (typeof error === 'object' && error !== null) {
+      errorMessage = JSON.stringify(error);
+    } else {
+      errorMessage = String(error);
+    }
+    
     return NextResponse.json(
-      { error: `Failed to create order: ${error}` },
+      { error: `Failed to create order: ${errorMessage}` },
       { status: 500 }
     );
   }
