@@ -32,7 +32,8 @@ export function PhotoUpload({ onPhotoSelect, className }: PhotoUploadProps) {
     },
     maxFiles: 1,
     multiple: false
-  });
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  } as any);
 
   const removePhoto = () => {
     setPreview(null);
@@ -48,7 +49,8 @@ export function PhotoUpload({ onPhotoSelect, className }: PhotoUploadProps) {
             isDragActive ? "border-primary bg-primary/5" : "border-muted-foreground/25 hover:border-primary/50"
           )}
         >
-          <input {...getInputProps()} />
+          {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
+          <input {...(getInputProps() as any)} />
           <Upload className="w-12 h-12 mx-auto mb-4 text-muted-foreground" />
           <p className="text-sm text-muted-foreground">
             {isDragActive

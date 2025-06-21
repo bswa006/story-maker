@@ -13,7 +13,7 @@ function StoryViewer({ storybook }: { storybook: Storybook }) {
 
   // Generate images when storybook is created
   useEffect(() => {
-    if (storybook.status === 'created') {
+    if (storybook.status === 'draft') {
       generateImages();
     }
   }, [storybook]); // eslint-disable-line react-hooks/exhaustive-deps

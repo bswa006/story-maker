@@ -147,11 +147,11 @@ export default function SimplePage() {
             marginBottom: '0.5rem',
             fontWeight: '500'
           }}>
-            Child's Name
+            Child&apos;s Name
           </label>
           <input
             type="text"
-            placeholder="Enter the child's name"
+            placeholder="Enter the child&apos;s name"
             value={childName}
             onChange={(e) => setChildName(e.target.value)}
             style={{
@@ -171,7 +171,7 @@ export default function SimplePage() {
             marginBottom: '0.5rem',
             fontWeight: '500'
           }}>
-            Child's Photo
+            Child&apos;s Photo
           </label>
           
           <input
@@ -204,7 +204,7 @@ export default function SimplePage() {
             >
               <div style={{ marginBottom: '1rem', fontSize: '3rem' }}>📸</div>
               <p style={{ color: '#6b7280', marginBottom: '0.5rem' }}>
-                Drag & drop your child's photo here, or click to select
+                Drag & drop your child&apos;s photo here, or click to select
               </p>
               <p style={{ fontSize: '0.875rem', color: '#9ca3af' }}>
                 Supports: JPG, PNG, WebP

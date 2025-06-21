@@ -42,11 +42,11 @@ export function StoryForm({ onSubmit }: StoryFormProps) {
       <CardContent>
         <form onSubmit={handleSubmit} className="space-y-6">
           <div className="space-y-2">
-            <Label htmlFor="childName">Child's Name</Label>
+            <Label htmlFor="childName">Child&apos;s Name</Label>
             <Input
               id="childName"
               type="text"
-              placeholder="Enter the child's name"
+              placeholder="Enter the child&apos;s name"
               value={childName}
               onChange={(e) => setChildName(e.target.value)}
               required
@@ -55,7 +55,7 @@ export function StoryForm({ onSubmit }: StoryFormProps) {
           </div>
 
           <div className="space-y-2">
-            <Label>Child's Photo</Label>
+            <Label>Child&apos;s Photo</Label>
             <PhotoUpload onPhotoSelect={setChildPhoto} />
           </div>
 
