@@ -44,7 +44,7 @@ export async function POST(request: NextRequest) {
 
     // Create Razorpay order
     const razorpayOrder = await razorpay.orders.create({
-      amount: amount, // Amount in paise
+      amount: amount * 100, // Convert rupees to paise for Razorpay
       currency: 'INR',
       receipt: receipt,
       notes: {
@@ -65,7 +65,7 @@ export async function POST(request: NextRequest) {
       storybookId,
       outputFormat,
       customerInfo,
-      amount: amount / 100, // Convert back to rupees
+      amount: amount, // Amount in rupees
       status: 'payment_pending',
       createdAt: new Date(),
       receipt: receipt
@@ -74,7 +74,8 @@ export async function POST(request: NextRequest) {
     console.log('Order created successfully:', {
       orderId,
       razorpayOrderId: razorpayOrder.id,
-      amount: amount / 100,
+      amount: amount, // Amount in rupees
+      amountInPaise: amount * 100,
       receipt
     });
 

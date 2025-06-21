@@ -55,7 +55,7 @@ export function PaymentCheckout({
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          amount: amount * 100, // Convert to paise
+          amount: amount, // Amount in rupees, backend will convert to paise
           storybookId,
           outputFormat,
           customerInfo
@@ -76,7 +76,7 @@ export function PaymentCheckout({
       // Configure Razorpay options
       const options = {
         key: razorpayKey,
-        amount: amount * 100,
+        amount: amount * 100, // Convert to paise for Razorpay frontend
         currency: currency || 'INR',
         name: 'StoryMaker',
         description: `${selectedOption?.name} - ${customerInfo.name}'s Storybook`,
