@@ -4,6 +4,7 @@ import { useState, useRef, useEffect } from 'react';
 import { Storybook } from '@/types/storybook';
 import { STORY_ANIMALS } from '@/data/story-template';
 import { SaveStoryFlow } from '@/components/save-story/save-story-flow';
+import { COST_SETTINGS } from '@/config/cost-settings';
 
 // Mobile App Story Viewer Component
 function StoryViewer({ storybook }: { storybook: Storybook }) {
@@ -26,48 +27,80 @@ function StoryViewer({ storybook }: { storybook: Storybook }) {
     setIsGeneratingImages(true);
     const updatedPages = [...updatedStorybook.pages];
 
-    console.log('Total pages to generate:', updatedPages.length);
+    // Use cost settings from config
+    const maxImagesToGenerate = COST_SETTINGS.TESTING_MODE 
+      ? COST_SETTINGS.MAX_TEST_IMAGES 
+      : updatedPages.length;
+    
+    console.log('Total pages:', updatedPages.length);
+    console.log(`⚠️ TESTING MODE: Only generating ${maxImagesToGenerate} images to save costs`);
 
-    // Generate images for each page
+    // Generate images for limited pages in testing mode
     for (let i = 0; i < updatedPages.length; i++) {
       const page = updatedPages[i];
-      
-      console.log(`Generating image for page ${i + 1}/${updatedPages.length}:`, {
-        pageId: page.id,
-        prompt: page.imagePrompt,
-        childPhotoUrl: storybook.childPhotoUrl ? 'present' : 'missing'
-      });
       
       // Set loading state for this specific page
       setImageLoadingStates(prev => ({ ...prev, [page.id]: true }));
       
-      try {
-        const response = await fetch('/api/generate-image', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            prompt: page.imagePrompt,
-            childPhotoUrl: storybook.childPhotoUrl,
-            style: 'ghibli'
-          })
+      if (i < maxImagesToGenerate) {
+        console.log(`Generating actual image for page ${i + 1}/${updatedPages.length}:`, {
+          pageId: page.id,
+          prompt: page.imagePrompt,
+          childPhotoUrl: storybook.childPhotoUrl ? 'present' : 'missing'
         });
+        
+        try {
+          const response = await fetch('/api/generate-image', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              prompt: page.imagePrompt,
+              childPhotoUrl: storybook.childPhotoUrl,
+              style: 'ghibli',
+              skipChildAnalysis: i > 0 // Skip analysis after first image to save costs
+            })
+          });
 
-        console.log(`Image generation response for page ${i + 1}:`, response.status);
+          console.log(`Image generation response for page ${i + 1}:`, response.status);
 
-        if (response.ok) {
-          const result = await response.json();
-          console.log(`Image generated successfully for page ${i + 1}`);
-          updatedPages[i] = { ...page, imageUrl: result.imageUrl };
-          setUpdatedStorybook(prev => ({
-            ...prev,
-            pages: [...updatedPages]
-          }));
-        } else {
-          const errorText = await response.text();
-          console.error(`Failed to generate image for page ${i + 1}:`, response.status, errorText);
+          if (response.ok) {
+            const result = await response.json();
+            console.log(`Image generated successfully for page ${i + 1}`);
+            updatedPages[i] = { ...page, imageUrl: result.imageUrl };
+            setUpdatedStorybook(prev => ({
+              ...prev,
+              pages: [...updatedPages]
+            }));
+          } else {
+            const errorText = await response.text();
+            console.error(`Failed to generate image for page ${i + 1}:`, response.status, errorText);
+          }
+        } catch (error) {
+          console.error('Failed to generate image for page', i + 1, error);
         }
-      } catch (error) {
-        console.error('Failed to generate image for page', i + 1, error);
+      } else {
+        // Use test placeholder for remaining pages
+        console.log(`Using test placeholder for page ${i + 1} (cost saving mode)`);
+        const testImageUrl = `data:image/svg+xml;base64,${Buffer.from(`
+          <svg width="800" height="600" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+              <linearGradient id="testGrad${i}" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" style="stop-color:#FFE4E1"/>
+                <stop offset="100%" style="stop-color:#E0BBE4"/>
+              </linearGradient>
+            </defs>
+            <rect width="100%" height="100%" fill="url(#testGrad${i})"/>
+            <text x="50%" y="40%" font-family="Arial, sans-serif" font-size="28" fill="#8B7D82" text-anchor="middle">🧪 Testing Mode</text>
+            <text x="50%" y="50%" font-family="Arial, sans-serif" font-size="20" fill="#8B7D82" text-anchor="middle">Page ${i + 1}</text>
+            <text x="50%" y="60%" font-family="Arial, sans-serif" font-size="16" fill="#A8A8A8" text-anchor="middle">(Placeholder to save costs)</text>
+          </svg>
+        `).toString('base64')}`;
+        
+        updatedPages[i] = { ...page, imageUrl: testImageUrl };
+        setUpdatedStorybook(prev => ({
+          ...prev,
+          pages: [...updatedPages]
+        }));
       }
       
       // Remove loading state for this page

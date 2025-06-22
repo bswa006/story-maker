@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { COST_SETTINGS } from '@/config/cost-settings';
 
 // Helper function to analyze child photo and get detailed description
 async function analyzeChildPhoto(photoUrl: string, apiKey: string): Promise<string> {
@@ -12,7 +13,7 @@ async function analyzeChildPhoto(photoUrl: string, apiKey: string): Promise<stri
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'gpt-4o-mini',
+        model: COST_SETTINGS.VISION_ANALYSIS.MODEL,
         messages: [
           {
             role: 'user',
@@ -30,7 +31,7 @@ async function analyzeChildPhoto(photoUrl: string, apiKey: string): Promise<stri
             ]
           }
         ],
-        max_tokens: 200
+        max_tokens: COST_SETTINGS.VISION_ANALYSIS.MAX_TOKENS
       })
     });
 
@@ -64,12 +65,12 @@ async function generatePersonalizedImage(prompt: string, childDescription: strin
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'dall-e-3',
+        model: COST_SETTINGS.IMAGE_GENERATION.MODEL,
         prompt: personalizedPrompt,
         n: 1,
-        size: '1024x1024',
-        quality: 'hd', // Use HD quality for better details
-        style: 'vivid'
+        size: COST_SETTINGS.IMAGE_GENERATION.SIZE,
+        quality: COST_SETTINGS.IMAGE_GENERATION.QUALITY,
+        style: COST_SETTINGS.IMAGE_GENERATION.STYLE
       })
     });
 
@@ -162,10 +163,13 @@ async function swapFaceWithReplicate(baseImageUrl: string, faceImageUrl: string,
   }
 }
 
+// Simple in-memory cache for child descriptions (resets on server restart)
+const childDescriptionCache = new Map<string, string>();
+
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { prompt, childPhotoUrl } = body;
+    const { prompt, childPhotoUrl, skipChildAnalysis } = body;
 
     if (!prompt || !childPhotoUrl) {
       return NextResponse.json(
@@ -175,25 +179,37 @@ export async function POST(request: NextRequest) {
     }
 
     const openaiApiKey = process.env.OPENAI_API_KEY;
-    const replicateToken = process.env.REPLICATE_API_TOKEN;
+    // const replicateToken = process.env.REPLICATE_API_TOKEN; // Commented out - not used in cost-saving mode
     let imageUrl: string;
 
     if (openaiApiKey) {
       try {
-        console.log('=== Starting hybrid image generation process ===');
+        console.log('=== Starting cost-optimized image generation ===');
         console.log('OpenAI API Key available:', !!openaiApiKey);
-        console.log('Replicate Token available:', !!replicateToken);
-        console.log('Child Photo URL:', childPhotoUrl?.substring(0, 50) + '...');
+        console.log('Skip child analysis:', skipChildAnalysis);
         console.log('Prompt:', prompt);
         
-        // Step 1: Analyze the child's photo to get detailed description
-        console.log('=== Step 1: Analyzing child photo ===');
-        const childDescription = await analyzeChildPhoto(childPhotoUrl, openaiApiKey);
+        let childDescription: string;
+        
+        // Check if we should skip analysis or use cached description
+        const shouldSkipAnalysis = COST_SETTINGS.VISION_ANALYSIS.SKIP_AFTER_FIRST && 
+          (skipChildAnalysis || childDescriptionCache.has(childPhotoUrl));
+          
+        if (shouldSkipAnalysis) {
+          childDescription = childDescriptionCache.get(childPhotoUrl) || 
+            'a happy, cheerful child with bright eyes and a warm smile';
+          console.log('✅ Using cached/default child description (saving API cost)');
+        } else {
+          // Step 1: Analyze the child's photo to get detailed description
+          console.log('=== Step 1: Analyzing child photo (first time only) ===');
+          childDescription = await analyzeChildPhoto(childPhotoUrl, openaiApiKey);
+          childDescriptionCache.set(childPhotoUrl, childDescription);
+        }
         
         // Step 2: Generate personalized image with child description
-        console.log('=== Step 2: Generating personalized DALL-E image ===');
+        console.log('=== Step 2: Generating DALL-E image (standard quality) ===');
         imageUrl = await generatePersonalizedImage(prompt, childDescription, openaiApiKey);
-        console.log('✅ Personalized DALL-E image generated:', imageUrl?.substring(0, 50) + '...');
+        console.log('✅ Image generated successfully');
         
       } catch (error) {
         console.error('❌ Complete image generation failed, using SVG fallback:', error);
