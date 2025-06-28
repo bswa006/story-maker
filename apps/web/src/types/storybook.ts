@@ -12,9 +12,18 @@ export interface Storybook {
   id: string;
   childName: string;
   childPhotoUrl?: string;
+  childAge?: string;
+  templateId: string;
+  category: string;
+  subscriptionTier: 'basic' | 'premium' | 'all';
   pages: StoryPage[];
+  learningObjectives: string[];
+  therapeuticValue?: string[];
+  estimatedReadingTime: number;
   createdAt: Date;
   status: 'draft' | 'created' | 'generating' | 'completed' | 'error';
+  downloadCount?: number;
+  shareCount?: number;
 }
 
 export interface GenerateImageRequest {

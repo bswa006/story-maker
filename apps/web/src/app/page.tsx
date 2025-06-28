@@ -1,655 +1,466 @@
 'use client';
 
-import { useState, useRef, useEffect } from 'react';
-import { Storybook } from '@/types/storybook';
-import { STORY_ANIMALS } from '@/data/story-template';
-import { SaveStoryFlow } from '@/components/save-story/save-story-flow';
-import { COST_SETTINGS } from '@/config/cost-settings';
+import { useRouter } from 'next/navigation';
+import { useSession } from 'next-auth/react';
+import { Sparkles, BookOpen, School, Zap, TrendingUp, Users, Shield, ArrowRight, Heart, Star, Brain } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import Link from 'next/link';
 
-// Mobile App Story Viewer Component
-function StoryViewer({ storybook }: { storybook: Storybook }) {
-  const [currentPage, setCurrentPage] = useState(0);
-  const [isGeneratingImages, setIsGeneratingImages] = useState(false);
-  const [updatedStorybook, setUpdatedStorybook] = useState(storybook);
-  const [imageLoadingStates, setImageLoadingStates] = useState<Record<string, boolean>>({});
-  const [showSaveFlow, setShowSaveFlow] = useState(false);
-
-  // Generate images when storybook is created
-  useEffect(() => {
-    if (storybook.status === 'created') {
-      console.log('Storybook created, starting image generation...');
-      generateImages();
-    }
-  }, [storybook]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  const generateImages = async () => {
-    console.log('Starting image generation for storybook:', updatedStorybook);
-    setIsGeneratingImages(true);
-    const updatedPages = [...updatedStorybook.pages];
-
-    // Use cost settings from config
-    const maxImagesToGenerate = COST_SETTINGS.TESTING_MODE 
-      ? COST_SETTINGS.MAX_TEST_IMAGES 
-      : updatedPages.length;
-    
-    console.log('Total pages:', updatedPages.length);
-    console.log(`⚠️ TESTING MODE: Only generating ${maxImagesToGenerate} images to save costs`);
-
-    // Generate images for limited pages in testing mode
-    for (let i = 0; i < updatedPages.length; i++) {
-      const page = updatedPages[i];
-      
-      // Set loading state for this specific page
-      setImageLoadingStates(prev => ({ ...prev, [page.id]: true }));
-      
-      if (i < maxImagesToGenerate) {
-        console.log(`Generating actual image for page ${i + 1}/${updatedPages.length}:`, {
-          pageId: page.id,
-          prompt: page.imagePrompt,
-          childPhotoUrl: storybook.childPhotoUrl ? 'present' : 'missing'
-        });
-        
-        try {
-          const response = await fetch('/api/generate-image', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              prompt: page.imagePrompt,
-              childPhotoUrl: storybook.childPhotoUrl,
-              style: 'ghibli',
-              skipChildAnalysis: i > 0 // Skip analysis after first image to save costs
-            })
-          });
-
-          console.log(`Image generation response for page ${i + 1}:`, response.status);
-
-          if (response.ok) {
-            const result = await response.json();
-            console.log(`Image generated successfully for page ${i + 1}`);
-            updatedPages[i] = { ...page, imageUrl: result.imageUrl };
-            setUpdatedStorybook(prev => ({
-              ...prev,
-              pages: [...updatedPages]
-            }));
-          } else {
-            const errorText = await response.text();
-            console.error(`Failed to generate image for page ${i + 1}:`, response.status, errorText);
-          }
-        } catch (error) {
-          console.error('Failed to generate image for page', i + 1, error);
-        }
-      } else {
-        // Use test placeholder for remaining pages
-        console.log(`Using test placeholder for page ${i + 1} (cost saving mode)`);
-        const testImageUrl = `data:image/svg+xml;base64,${Buffer.from(`
-          <svg width="800" height="600" xmlns="http://www.w3.org/2000/svg">
-            <defs>
-              <linearGradient id="testGrad${i}" x1="0%" y1="0%" x2="100%" y2="100%">
-                <stop offset="0%" style="stop-color:#FFE4E1"/>
-                <stop offset="100%" style="stop-color:#E0BBE4"/>
-              </linearGradient>
-            </defs>
-            <rect width="100%" height="100%" fill="url(#testGrad${i})"/>
-            <text x="50%" y="40%" font-family="Arial, sans-serif" font-size="28" fill="#8B7D82" text-anchor="middle">🧪 Testing Mode</text>
-            <text x="50%" y="50%" font-family="Arial, sans-serif" font-size="20" fill="#8B7D82" text-anchor="middle">Page ${i + 1}</text>
-            <text x="50%" y="60%" font-family="Arial, sans-serif" font-size="16" fill="#A8A8A8" text-anchor="middle">(Placeholder to save costs)</text>
-          </svg>
-        `).toString('base64')}`;
-        
-        updatedPages[i] = { ...page, imageUrl: testImageUrl };
-        setUpdatedStorybook(prev => ({
-          ...prev,
-          pages: [...updatedPages]
-        }));
-      }
-      
-      // Remove loading state for this page
-      setImageLoadingStates(prev => ({ ...prev, [page.id]: false }));
-      
-      // Small delay between generations
-      await new Promise(resolve => setTimeout(resolve, 500));
-    }
-
-    setIsGeneratingImages(false);
-    setUpdatedStorybook(prev => ({ ...prev, status: 'completed' }));
-  };
-
-  const goToNextPage = () => {
-    if (currentPage < updatedStorybook.pages.length - 1) {
-      const nextPageData = updatedStorybook.pages[currentPage + 1];
-      // Set loading state for next page if it has no image yet
-      if (!nextPageData?.imageUrl) {
-        setImageLoadingStates(prev => ({ ...prev, [nextPageData.id]: true }));
-      }
-      setCurrentPage(currentPage + 1);
-    }
-  };
-
-  const goToPreviousPage = () => {
-    if (currentPage > 0) {
-      const prevPageData = updatedStorybook.pages[currentPage - 1];
-      // Set loading state for previous page if it has no image yet
-      if (!prevPageData?.imageUrl) {
-        setImageLoadingStates(prev => ({ ...prev, [prevPageData.id]: true }));
-      }
-      setCurrentPage(currentPage - 1);
-    }
-  };
-
-  const currentPageData = updatedStorybook.pages[currentPage];
-  const isImageLoading = imageLoadingStates[currentPageData?.id];
-  const hasImageUrl = currentPageData?.imageUrl && !isImageLoading;
+export default function HomePage() {
+  const router = useRouter();
+  const { data: session } = useSession();
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-violet-50 to-purple-100 relative overflow-hidden">
-      {/* Mobile App Header */}
-      <div className="sticky top-0 z-50 bg-white/95 backdrop-blur-lg border-b border-gray-200/50">
-        <div className="flex items-center justify-between px-4 py-3">
-          <div className="w-8 h-8 bg-gradient-to-r from-violet-500 to-purple-600 rounded-full flex items-center justify-center">
-            <span className="text-white text-sm font-bold">📚</span>
-          </div>
-          <h1 className="text-lg font-semibold text-gray-900 truncate flex-1 text-center">
-            {updatedStorybook.childName}&apos;s Story
-          </h1>
-          <button className="w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center">
-            <span className="text-gray-600">⋯</span>
-          </button>
-        </div>
-      </div>
+    <div className="min-h-screen bg-gradient-to-br from-white via-violet-50/30 to-purple-50/40">
+      {/* Hero Section */}
+      <section className="relative overflow-hidden">
+        <div className="absolute inset-0 bg-gradient-to-br from-violet-100/40 via-transparent to-purple-100/40" />
+        
+        <div className="relative container mx-auto px-4 py-20">
+          <div className="text-center max-w-4xl mx-auto">
+            {/* Badge */}
+            <div className="inline-flex items-center gap-2 bg-gradient-to-r from-violet-100 to-purple-100 text-violet-700 px-4 py-2 rounded-full text-sm font-medium mb-6">
+              <Sparkles className="w-4 h-4" />
+              AI-Powered Personalized Stories
+            </div>
 
-      {/* Mobile Story Content */}
-      <div className="px-4 pb-32">
-        {/* Story Card */}
-        <div className="mt-4 bg-white rounded-3xl shadow-xl overflow-hidden">
-          {/* Image Section */}
-          <div className="relative aspect-square bg-gradient-to-br from-sky-100 to-blue-200 flex items-center justify-center">
-            {hasImageUrl ? (
-              <img
-                src={currentPageData.imageUrl}
-                alt={`Page ${currentPage + 1} illustration`}
-                className="w-full h-full object-cover"
-                onLoad={() => setImageLoadingStates(prev => ({ ...prev, [currentPageData.id]: false }))}
-                onLoadStart={() => setImageLoadingStates(prev => ({ ...prev, [currentPageData.id]: true }))}
-              />
-            ) : (
-              <div className="text-center p-8">
-                {isImageLoading || isGeneratingImages ? (
-                  <div className="space-y-4">
-                    <div className="w-16 h-16 mx-auto bg-white rounded-full flex items-center justify-center shadow-lg">
-                      <div className="w-8 h-8 border-3 border-violet-500 border-t-transparent rounded-full animate-spin"></div>
-                    </div>
-                    <div className="text-gray-700 font-medium">
-                      Creating magic...
-                    </div>
-                    <div className="text-sm text-violet-600 font-medium">
-                      ✨ AI at work ✨
-                    </div>
-                  </div>
-                ) : (
-                  <div className="space-y-4">
-                    <div className="w-20 h-20 mx-auto bg-white rounded-full flex items-center justify-center shadow-lg">
-                      <span className="text-4xl">{currentPageData?.animal || '📖'}</span>
-                    </div>
-                    <p className="text-gray-600 font-medium">
-                      Your illustration will appear here
-                    </p>
-                  </div>
-                )}
-              </div>
-            )}
+            <h1 className="text-5xl md:text-7xl font-bold text-gray-900 mb-6">
+              Transform Your Child Into
+              <span className="block bg-gradient-to-r from-violet-600 to-purple-600 bg-clip-text text-transparent">
+                The Hero of Their Story
+              </span>
+            </h1>
             
-            {/* Page Counter Badge */}
-            <div className="absolute top-4 right-4 bg-black/70 text-white px-3 py-1 rounded-full text-sm font-medium">
-              {currentPage + 1}/{updatedStorybook.pages.length}
-            </div>
-          </div>
+            <p className="text-xl text-gray-600 mb-8 max-w-2xl mx-auto">
+              Create magical personalized storybooks featuring your child&apos;s photo with AI-generated 
+              illustrations in stunning Studio Ghibli style. Educational, therapeutic, and unforgettable.
+            </p>
 
-          {/* Text Section */}
-          <div className="p-6 space-y-4">
-            {/* Animal Emoji */}
-            {currentPageData?.animal && (
-              <div className="text-center">
-                <span className="text-5xl">{currentPageData.animal}</span>
+            <div className="flex flex-col sm:flex-row gap-4 justify-center mb-12">
+              <Button
+                onClick={() => session ? router.push('/create-story') : router.push('/auth/signup')}
+                size="lg"
+                className="bg-gradient-to-r from-violet-600 to-purple-600 hover:from-violet-700 hover:to-purple-700 text-white px-8 py-6 text-lg"
+              >
+                Start Creating Stories
+                <ArrowRight className="ml-2 w-5 h-5" />
+              </Button>
+              <Button
+                onClick={() => router.push('/pricing')}
+                size="lg"
+                variant="outline"
+                className="border-2 px-8 py-6 text-lg"
+              >
+                View Pricing
+              </Button>
+            </div>
+
+            {/* Trust Badges */}
+            <div className="flex flex-wrap justify-center gap-8 text-sm text-gray-600">
+              <div className="flex items-center gap-2">
+                <Shield className="w-5 h-5 text-green-600" />
+                <span>Child-Safe AI</span>
               </div>
-            )}
-
-            {/* Story Text */}
-            <div className="text-center space-y-3">
-              <p className="text-lg font-medium text-gray-900 leading-relaxed whitespace-pre-line">
-                {currentPageData?.text.replace('{{childName}}', updatedStorybook.childName)}
-              </p>
-              
-              {currentPageData?.lesson && (
-                <div className="bg-violet-50 border border-violet-200 rounded-2xl p-4">
-                  <p className="text-sm font-medium text-violet-800">
-                    💡 {currentPageData.lesson}
-                  </p>
-                </div>
-              )}
+              <div className="flex items-center gap-2">
+                <Users className="w-5 h-5 text-blue-600" />
+                <span>50,000+ Happy Families</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <TrendingUp className="w-5 h-5 text-purple-600" />
+                <span>4.9★ Rating</span>
+              </div>
             </div>
           </div>
         </div>
+      </section>
 
-        {/* Page Dots */}
-        <div className="flex justify-center space-x-2 mt-6">
-          {updatedStorybook.pages.map((page, index) => (
-            <button
-              key={index}
-              onClick={() => {
-                // Set loading state for target page if it has no image yet
-                if (!page?.imageUrl) {
-                  setImageLoadingStates(prev => ({ ...prev, [page.id]: true }));
-                }
-                setCurrentPage(index);
-              }}
-              className={`w-2 h-2 rounded-full transition-all ${
-                currentPage === index
-                  ? 'bg-violet-500 w-6'
-                  : 'bg-gray-300'
-              }`}
-            />
-          ))}
+      {/* Value Proposition Section */}
+      <section className="py-20 px-4">
+        <div className="container mx-auto max-w-6xl">
+          <div className="text-center mb-16">
+            <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4">
+              More Than Just Stories
+            </h2>
+            <p className="text-lg text-gray-600 max-w-2xl mx-auto">
+              Our AI-powered platform creates personalized content that helps your child learn, grow, and dream
+            </p>
+          </div>
+
+          <div className="grid md:grid-cols-3 gap-8">
+            {/* Educational Focus */}
+            <div className="bg-white rounded-2xl p-8 shadow-lg border border-gray-100">
+              <div className="w-16 h-16 bg-gradient-to-br from-blue-500 to-cyan-600 rounded-2xl flex items-center justify-center mb-6">
+                <Brain className="w-8 h-8 text-white" />
+              </div>
+              <h3 className="text-2xl font-bold text-gray-900 mb-4">Educational Excellence</h3>
+              <p className="text-gray-600 mb-4">
+                Stories designed with child development experts to teach life lessons, values, and academic concepts
+              </p>
+              <ul className="space-y-2 text-gray-600">
+                <li className="flex items-start gap-2">
+                  <span className="text-blue-600 mt-1">✓</span>
+                  <span>STEM learning adventures</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="text-blue-600 mt-1">✓</span>
+                  <span>Social-emotional development</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="text-blue-600 mt-1">✓</span>
+                  <span>Language & literacy skills</span>
+                </li>
+              </ul>
+            </div>
+
+            {/* Personalization */}
+            <div className="bg-white rounded-2xl p-8 shadow-lg border border-gray-100">
+              <div className="w-16 h-16 bg-gradient-to-br from-purple-500 to-pink-600 rounded-2xl flex items-center justify-center mb-6">
+                <Heart className="w-8 h-8 text-white" />
+              </div>
+              <h3 className="text-2xl font-bold text-gray-900 mb-4">Deeply Personal</h3>
+              <p className="text-gray-600 mb-4">
+                Every story features your child as the main character with their actual photo in beautiful illustrations
+              </p>
+              <ul className="space-y-2 text-gray-600">
+                <li className="flex items-start gap-2">
+                  <span className="text-purple-600 mt-1">✓</span>
+                  <span>Child&apos;s photo in every scene</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="text-purple-600 mt-1">✓</span>
+                  <span>Customized to interests & age</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="text-purple-600 mt-1">✓</span>
+                  <span>Multiple theme options</span>
+                </li>
+              </ul>
+            </div>
+
+            {/* Therapeutic Value */}
+            <div className="bg-white rounded-2xl p-8 shadow-lg border border-gray-100">
+              <div className="w-16 h-16 bg-gradient-to-br from-green-500 to-emerald-600 rounded-2xl flex items-center justify-center mb-6">
+                <Star className="w-8 h-8 text-white" />
+              </div>
+              <h3 className="text-2xl font-bold text-gray-900 mb-4">Therapeutic Benefits</h3>
+              <p className="text-gray-600 mb-4">
+                Stories that help children process emotions, build confidence, and develop healthy habits
+              </p>
+              <ul className="space-y-2 text-gray-600">
+                <li className="flex items-start gap-2">
+                  <span className="text-green-600 mt-1">✓</span>
+                  <span>Anxiety & fear management</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="text-green-600 mt-1">✓</span>
+                  <span>Building self-esteem</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="text-green-600 mt-1">✓</span>
+                  <span>Special needs support</span>
+                </li>
+              </ul>
+            </div>
+          </div>
         </div>
-      </div>
+      </section>
 
-      {/* Mobile Bottom Navigation */}
-      <div className="fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur-lg border-t border-gray-200/50">
-        <div className="flex items-center justify-between px-6 py-4">
-          <button
-            onClick={goToPreviousPage}
-            disabled={currentPage === 0}
-            className={`flex items-center justify-center w-12 h-12 rounded-2xl ${
-              currentPage === 0
-                ? 'bg-gray-100 text-gray-400'
-                : 'bg-violet-500 text-white shadow-lg active:scale-95'
-            } transition-all`}
-          >
-            <span className="text-xl">←</span>
-          </button>
+      {/* How It Works */}
+      <section className="py-20 bg-gray-50">
+        <div className="container mx-auto px-4 max-w-6xl">
+          <div className="text-center mb-12">
+            <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4">
+              Create Magic in 3 Simple Steps
+            </h2>
+            <p className="text-lg text-gray-600">
+              From upload to enchanted storybook in just minutes
+            </p>
+          </div>
 
-          <button 
-            onClick={() => setShowSaveFlow(true)}
-            className="flex-1 mx-4 bg-emerald-500 text-white py-4 rounded-2xl font-semibold shadow-lg active:scale-95 transition-all"
-          >
-            📥 Save Story
-          </button>
+          <div className="grid md:grid-cols-3 gap-8">
+            <div className="text-center">
+              <div className="w-20 h-20 bg-gradient-to-br from-violet-500 to-purple-600 rounded-2xl mx-auto mb-4 flex items-center justify-center text-white text-2xl font-bold shadow-lg">
+                1
+              </div>
+              <h3 className="text-xl font-bold text-gray-900 mb-2">Upload Photo</h3>
+              <p className="text-gray-600">
+                Upload your child&apos;s photo and enter their name and age
+              </p>
+            </div>
 
-          <button
-            onClick={goToNextPage}
-            disabled={currentPage === updatedStorybook.pages.length - 1}
-            className={`flex items-center justify-center w-12 h-12 rounded-2xl ${
-              currentPage === updatedStorybook.pages.length - 1
-                ? 'bg-gray-100 text-gray-400'
-                : 'bg-violet-500 text-white shadow-lg active:scale-95'
-            } transition-all`}
-          >
-            <span className="text-xl">→</span>
-          </button>
+            <div className="text-center">
+              <div className="w-20 h-20 bg-gradient-to-br from-violet-500 to-purple-600 rounded-2xl mx-auto mb-4 flex items-center justify-center text-white text-2xl font-bold shadow-lg">
+                2
+              </div>
+              <h3 className="text-xl font-bold text-gray-900 mb-2">Choose Theme</h3>
+              <p className="text-gray-600">
+                Select from educational, adventure, or therapeutic themes
+              </p>
+            </div>
+
+            <div className="text-center">
+              <div className="w-20 h-20 bg-gradient-to-br from-violet-500 to-purple-600 rounded-2xl mx-auto mb-4 flex items-center justify-center text-white text-2xl font-bold shadow-lg">
+                3
+              </div>
+              <h3 className="text-xl font-bold text-gray-900 mb-2">Generate & Download</h3>
+              <p className="text-gray-600">
+                AI creates your story with beautiful illustrations instantly
+              </p>
+            </div>
+          </div>
         </div>
-      </div>
+      </section>
 
-      {/* Save Story Flow Modal */}
-      {showSaveFlow && (
-        <SaveStoryFlow
-          storybook={updatedStorybook}
-          onClose={() => setShowSaveFlow(false)}
-        />
-      )}
-    </div>
-  );
-}
+      {/* Features Section */}
+      <section className="py-20">
+        <div className="container mx-auto px-4 max-w-6xl">
+          <div className="text-center mb-12">
+            <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4">
+              Why Families Love StoryMaker
+            </h2>
+            <p className="text-lg text-gray-600">
+              Trusted by parents, educators, and therapists worldwide
+            </p>
+          </div>
 
-// Mobile App Main Component
-export default function Home() {
-  const [childName, setChildName] = useState('');
-  const [selectedPhoto, setSelectedPhoto] = useState<File | null>(null);
-  const [photoPreview, setPhotoPreview] = useState<string | null>(null);
-  const [selectedAnimals, setSelectedAnimals] = useState<string[]>(['bird', 'lion', 'turtle', 'butterfly']);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [storybook, setStorybook] = useState<Storybook | null>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
+            <div className="bg-white rounded-2xl p-6 shadow-lg border border-gray-100">
+              <div className="w-12 h-12 bg-violet-100 rounded-xl flex items-center justify-center mb-4">
+                <BookOpen className="w-6 h-6 text-violet-600" />
+              </div>
+              <h3 className="text-xl font-bold text-gray-900 mb-2">Personalized Content</h3>
+              <p className="text-gray-600">
+                Every story features your child as the main character with their actual photo
+              </p>
+            </div>
 
-  const handlePhotoSelect = (file: File) => {
-    setSelectedPhoto(file);
-    const reader = new FileReader();
-    reader.onloadend = () => {
-      setPhotoPreview(reader.result as string);
-    };
-    reader.readAsDataURL(file);
-  };
+            <div className="bg-white rounded-2xl p-6 shadow-lg border border-gray-100">
+              <div className="w-12 h-12 bg-purple-100 rounded-xl flex items-center justify-center mb-4">
+                <Sparkles className="w-6 h-6 text-purple-600" />
+              </div>
+              <h3 className="text-xl font-bold text-gray-900 mb-2">Studio Ghibli Style</h3>
+              <p className="text-gray-600">
+                Beautiful, dreamlike illustrations that capture the magic of childhood
+              </p>
+            </div>
 
-  const handleFileInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      handlePhotoSelect(file);
-    }
-  };
+            <div className="bg-white rounded-2xl p-6 shadow-lg border border-gray-100">
+              <div className="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center mb-4">
+                <School className="w-6 h-6 text-blue-600" />
+              </div>
+              <h3 className="text-xl font-bold text-gray-900 mb-2">Educational Value</h3>
+              <p className="text-gray-600">
+                Stories designed to teach life lessons, values, and academic concepts
+              </p>
+            </div>
 
-  const handleDropZoneClick = () => {
-    fileInputRef.current?.click();
-  };
+            <div className="bg-white rounded-2xl p-6 shadow-lg border border-gray-100">
+              <div className="w-12 h-12 bg-green-100 rounded-xl flex items-center justify-center mb-4">
+                <Shield className="w-6 h-6 text-green-600" />
+              </div>
+              <h3 className="text-xl font-bold text-gray-900 mb-2">100% Safe</h3>
+              <p className="text-gray-600">
+                Child-appropriate content with no ads, data collection, or external links
+              </p>
+            </div>
 
-  const handleDragOver = (e: React.DragEvent) => {
-    e.preventDefault();
-  };
+            <div className="bg-white rounded-2xl p-6 shadow-lg border border-gray-100">
+              <div className="w-12 h-12 bg-amber-100 rounded-xl flex items-center justify-center mb-4">
+                <Zap className="w-6 h-6 text-amber-600" />
+              </div>
+              <h3 className="text-xl font-bold text-gray-900 mb-2">Instant Creation</h3>
+              <p className="text-gray-600">
+                Generate complete personalized storybooks in under 2 minutes
+              </p>
+            </div>
 
-  const handleDrop = (e: React.DragEvent) => {
-    e.preventDefault();
-    const file = e.dataTransfer.files[0];
-    if (file && file.type.startsWith('image/')) {
-      handlePhotoSelect(file);
-    }
-  };
+            <div className="bg-white rounded-2xl p-6 shadow-lg border border-gray-100">
+              <div className="w-12 h-12 bg-pink-100 rounded-xl flex items-center justify-center mb-4">
+                <Users className="w-6 h-6 text-pink-600" />
+              </div>
+              <h3 className="text-xl font-bold text-gray-900 mb-2">Multi-Child Support</h3>
+              <p className="text-gray-600">
+                Create unique stories for all your children with family plans
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
 
-  const removePhoto = () => {
-    setSelectedPhoto(null);
-    setPhotoPreview(null);
-    if (fileInputRef.current) {
-      fileInputRef.current.value = '';
-    }
-  };
+      {/* B2B Section */}
+      <section className="py-20 bg-gradient-to-br from-gray-900 to-gray-800">
+        <div className="container mx-auto px-4 max-w-6xl">
+          <div className="text-center text-white">
+            <div className="inline-flex items-center gap-2 bg-white/10 backdrop-blur-sm px-4 py-2 rounded-full text-sm font-medium mb-6">
+              <School className="w-4 h-4" />
+              For Educational Institutions
+            </div>
+            <h2 className="text-3xl md:text-4xl font-bold mb-4">
+              Transform Learning in Your Classroom
+            </h2>
+            <p className="text-xl text-gray-300 mb-8 max-w-2xl mx-auto">
+              Special plans for schools, daycares, and therapy centers with bulk pricing and advanced features
+            </p>
+            
+            <div className="grid md:grid-cols-4 gap-6 mb-8">
+              <div className="text-center">
+                <div className="text-3xl font-bold text-white mb-2">94%</div>
+                <div className="text-gray-400">Student Engagement</div>
+              </div>
+              <div className="text-center">
+                <div className="text-3xl font-bold text-white mb-2">87%</div>
+                <div className="text-gray-400">Reading Improvement</div>
+              </div>
+              <div className="text-center">
+                <div className="text-3xl font-bold text-white mb-2">500+</div>
+                <div className="text-gray-400">Schools Using</div>
+              </div>
+              <div className="text-center">
+                <div className="text-3xl font-bold text-white mb-2">50k+</div>
+                <div className="text-gray-400">Students Reached</div>
+              </div>
+            </div>
 
-  const toggleAnimal = (animalName: string) => {
-    setSelectedAnimals(prev => {
-      if (prev.includes(animalName)) {
-        return prev.filter(name => name !== animalName);
-      } else {
-        if (prev.length < 6) {
-          return [...prev, animalName];
-        }
-        return prev;
-      }
-    });
-  };
+            <Button
+              onClick={() => router.push('/contact')}
+              size="lg"
+              className="bg-white text-gray-900 hover:bg-gray-100"
+            >
+              Contact Sales for Educational Pricing
+            </Button>
+          </div>
+        </div>
+      </section>
 
-  const selectAllAnimals = () => {
-    setSelectedAnimals(STORY_ANIMALS.map(animal => animal.name));
-  };
+      {/* Testimonials */}
+      <section className="py-20 bg-gray-50">
+        <div className="container mx-auto px-4 max-w-6xl">
+          <div className="text-center mb-12">
+            <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4">
+              Loved by Families Worldwide
+            </h2>
+          </div>
 
-  const clearAllAnimals = () => {
-    setSelectedAnimals([]);
-  };
+          <div className="grid md:grid-cols-3 gap-8">
+            <div className="bg-white rounded-2xl p-6 shadow-lg border border-gray-100">
+              <div className="flex items-center gap-1 mb-4">
+                {[...Array(5)].map((_, i) => (
+                  <Star key={i} className="w-5 h-5 fill-amber-400 text-amber-400" />
+                ))}
+              </div>
+              <p className="text-gray-600 mb-4 italic">
+                &ldquo;My daughter lights up every time we read her personalized story. Seeing herself in the 
+                beautiful illustrations makes bedtime magical!&rdquo;
+              </p>
+              <div className="font-semibold text-gray-900">Sarah M.</div>
+              <div className="text-sm text-gray-500">Mother of 2</div>
+            </div>
 
-  const handleSubmit = async () => {
-    if (!childName || !selectedPhoto || isSubmitting) {
-      return;
-    }
+            <div className="bg-white rounded-2xl p-6 shadow-lg border border-gray-100">
+              <div className="flex items-center gap-1 mb-4">
+                {[...Array(5)].map((_, i) => (
+                  <Star key={i} className="w-5 h-5 fill-amber-400 text-amber-400" />
+                ))}
+              </div>
+              <p className="text-gray-600 mb-4 italic">
+                &ldquo;As a teacher, I&apos;ve seen how these personalized stories boost reading engagement. 
+                Students are excited to be the heroes of their own adventures!&rdquo;
+              </p>
+              <div className="font-semibold text-gray-900">Ms. Rodriguez</div>
+              <div className="text-sm text-gray-500">2nd Grade Teacher</div>
+            </div>
 
-    setIsSubmitting(true);
-    try {
-      // Upload the photo
-      const formData = new FormData();
-      formData.append('file', selectedPhoto);
+            <div className="bg-white rounded-2xl p-6 shadow-lg border border-gray-100">
+              <div className="flex items-center gap-1 mb-4">
+                {[...Array(5)].map((_, i) => (
+                  <Star key={i} className="w-5 h-5 fill-amber-400 text-amber-400" />
+                ))}
+              </div>
+              <p className="text-gray-600 mb-4 italic">
+                &ldquo;The therapeutic stories helped my son overcome his fear of the dark. The personalization 
+                made him feel brave and empowered!&rdquo;
+              </p>
+              <div className="font-semibold text-gray-900">David L.</div>
+              <div className="text-sm text-gray-500">Father & Therapist</div>
+            </div>
+          </div>
+        </div>
+      </section>
 
-      const uploadResponse = await fetch('/api/upload', {
-        method: 'POST',
-        body: formData,
-      });
+      {/* CTA Section */}
+      <section className="py-20 bg-gradient-to-br from-violet-600 to-purple-700">
+        <div className="container mx-auto px-4 max-w-4xl text-center">
+          <h2 className="text-3xl md:text-4xl font-bold text-white mb-4">
+            Ready to Create Your First Story?
+          </h2>
+          <p className="text-xl text-violet-100 mb-8">
+            Join thousands of families creating personalized stories their children love
+          </p>
+          <div className="flex flex-col sm:flex-row gap-4 justify-center">
+            <Button
+              onClick={() => session ? router.push('/create-story') : router.push('/auth/signup')}
+              size="lg"
+              className="bg-white text-violet-600 hover:bg-gray-100 px-8 py-6 text-lg"
+            >
+              Start Free Story
+              <ArrowRight className="ml-2 w-5 h-5" />
+            </Button>
+            <Button
+              onClick={() => router.push('/pricing')}
+              size="lg"
+              variant="outline"
+              className="border-2 border-white text-white hover:bg-white/10 px-8 py-6 text-lg"
+            >
+              View Plans
+            </Button>
+          </div>
+        </div>
+      </section>
 
-      if (!uploadResponse.ok) {
-        throw new Error('Failed to upload photo');
-      }
-
-      const { url: photoUrl } = await uploadResponse.json();
-
-      // Create the storybook
-      const storybookResponse = await fetch('/api/storybook', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ 
-          childName, 
-          childPhotoUrl: photoUrl,
-          selectedAnimals: selectedAnimals.length > 0 ? selectedAnimals : STORY_ANIMALS.map(a => a.name)
-        }),
-      });
-
-      if (!storybookResponse.ok) {
-        throw new Error('Failed to create storybook');
-      }
-
-      const newStorybook = await storybookResponse.json();
-      setStorybook({
-        ...newStorybook,
-        childPhotoUrl: photoUrl,
-        createdAt: new Date(newStorybook.createdAt),
-      });
-
-    } catch (error) {
-      console.error('Error:', error);
-      alert('Failed to create storybook. Please try again.');
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
-  const isValid = childName.trim().length > 0 && selectedPhoto !== null && selectedAnimals.length > 0;
-
-  // Show story viewer if storybook exists
-  if (storybook) {
-    return <StoryViewer storybook={storybook} />;
-  }
-
-  // Elegant & Refined Design
-  return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-blue-50 relative">
-      {/* Subtle Background */}
-      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-violet-100/40 via-transparent to-blue-100/40"></div>
-      
-      {/* Refined Header */}
-      <div className="fixed top-3 left-3 right-3 z-50 bg-white/95 backdrop-blur-md rounded-2xl border border-gray-200/50 shadow-lg shadow-black/5">
-        <div className="flex items-center justify-between px-5 py-3">
-          <div className="flex items-center space-x-3">
-            <div className="w-9 h-9 bg-gradient-to-br from-violet-600 to-purple-700 rounded-xl flex items-center justify-center">
-              <span className="text-white text-sm">✨</span>
+      {/* Footer */}
+      <footer className="py-12 bg-gray-900 text-gray-400">
+        <div className="container mx-auto px-4 max-w-6xl">
+          <div className="grid md:grid-cols-4 gap-8 mb-8">
+            <div>
+              <h3 className="text-white font-bold mb-4">Product</h3>
+              <ul className="space-y-2">
+                <li><Link href="/create-story" className="hover:text-white">Create Story</Link></li>
+                <li><Link href="/pricing" className="hover:text-white">Pricing</Link></li>
+                <li><Link href="/create-story" className="hover:text-white">Examples</Link></li>
+              </ul>
             </div>
             <div>
-              <h1 className="text-lg font-bold text-gray-900">StoryMaker</h1>
-              <p className="text-xs text-gray-500">AI Stories</p>
+              <h3 className="text-white font-bold mb-4">Company</h3>
+              <ul className="space-y-2">
+                <li><Link href="#" className="hover:text-white">About</Link></li>
+                <li><Link href="#" className="hover:text-white">Blog</Link></li>
+                <li><Link href="#" className="hover:text-white">Contact</Link></li>
+              </ul>
             </div>
-          </div>
-          <button className="w-8 h-8 bg-gray-100 rounded-lg flex items-center justify-center">
-            <span className="text-gray-600">⋯</span>
-          </button>
-        </div>
-      </div>
-
-      {/* Elegant Hero */}
-      <div className="pt-20 pb-6 px-5">
-        <div className="text-center max-w-xs mx-auto">
-          <div className="w-20 h-20 bg-gradient-to-br from-violet-600 to-purple-700 rounded-3xl mx-auto mb-6 flex items-center justify-center shadow-lg">
-            <span className="text-3xl">📖</span>
+            <div>
+              <h3 className="text-white font-bold mb-4">Support</h3>
+              <ul className="space-y-2">
+                <li><Link href="#" className="hover:text-white">Help Center</Link></li>
+                <li><Link href="#" className="hover:text-white">Privacy Policy</Link></li>
+                <li><Link href="#" className="hover:text-white">Terms of Service</Link></li>
+              </ul>
+            </div>
+            <div>
+              <h3 className="text-white font-bold mb-4">Connect</h3>
+              <p className="mb-4">Stay updated with our latest features</p>
+              <div className="flex gap-4">
+                <a href="#" className="hover:text-white">Twitter</a>
+                <a href="#" className="hover:text-white">Facebook</a>
+                <a href="#" className="hover:text-white">Instagram</a>
+              </div>
+            </div>
           </div>
           
-          <h1 className="text-3xl font-bold text-gray-900 mb-2 leading-tight">
-            If I Were an<br/>
-            <span className="bg-gradient-to-r from-violet-600 to-purple-600 bg-clip-text text-transparent">
-              Animal...
-            </span>
-          </h1>
-          <p className="text-gray-600 text-base">
-            Create personalized AI stories
-          </p>
-        </div>
-      </div>
-
-      {/* Elegant Form Sections */}
-      <div className="px-5 pb-28 space-y-5">
-        {/* Child's Name */}
-        <div className="bg-white/80 backdrop-blur-sm rounded-2xl border border-gray-200/50 shadow-sm">
-          <div className="p-5">
-            <div className="flex items-center space-x-3 mb-4">
-              <div className="w-8 h-8 bg-gradient-to-br from-pink-500 to-rose-600 rounded-lg flex items-center justify-center">
-                <span className="text-white text-sm">👋</span>
-              </div>
-              <label className="text-lg font-semibold text-gray-900">Child&apos;s Name</label>
-            </div>
-            <input
-              type="text"
-              placeholder="Enter your little one's name"
-              value={childName}
-              onChange={(e) => setChildName(e.target.value)}
-              className="w-full px-4 py-3 bg-gray-50/80 border border-gray-200 rounded-xl text-gray-900 placeholder-gray-500 focus:outline-none focus:border-violet-400 focus:bg-white transition-all"
-            />
+          <div className="border-t border-gray-800 pt-8 text-center">
+            <p>&copy; 2024 StoryMaker AI. All rights reserved.</p>
           </div>
         </div>
-
-        {/* Photo Upload */}
-        <div className="bg-white/80 backdrop-blur-sm rounded-2xl border border-gray-200/50 shadow-sm">
-          <div className="p-5">
-            <div className="flex items-center space-x-3 mb-4">
-              <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-cyan-600 rounded-lg flex items-center justify-center">
-                <span className="text-white text-sm">📸</span>
-              </div>
-              <label className="text-lg font-semibold text-gray-900">Child&apos;s Photo</label>
-            </div>
-            
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept="image/*"
-              onChange={handleFileInputChange}
-              className="hidden"
-            />
-
-            {!photoPreview ? (
-              <div 
-                onClick={handleDropZoneClick}
-                onDragOver={handleDragOver}
-                onDrop={handleDrop}
-                className="border-2 border-dashed border-gray-300 rounded-xl p-8 text-center hover:border-gray-400 hover:bg-gray-50/50 transition-all cursor-pointer"
-              >
-                <div className="w-16 h-16 bg-gradient-to-br from-blue-100 to-purple-100 rounded-2xl mx-auto mb-4 flex items-center justify-center">
-                  <span className="text-2xl">🎨</span>
-                </div>
-                <p className="text-gray-700 font-medium mb-1">Drop your child&apos;s photo here</p>
-                <p className="text-gray-500 text-sm">or tap to browse • JPG, PNG up to 10MB</p>
-              </div>
-            ) : (
-              <div className="relative">
-                <img
-                  src={photoPreview}
-                  alt="Child&apos;s photo preview"
-                  className="w-full h-48 object-cover rounded-xl"
-                />
-                <button
-                  onClick={removePhoto}
-                  className="absolute top-3 right-3 w-8 h-8 bg-red-500 text-white rounded-lg flex items-center justify-center shadow-lg hover:bg-red-600 transition-colors"
-                >
-                  <span className="text-lg">×</span>
-                </button>
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* Animal Selection */}
-        <div className="bg-white/80 backdrop-blur-sm rounded-2xl border border-gray-200/50 shadow-sm">
-          <div className="p-5">
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center space-x-3">
-                <div className="w-8 h-8 bg-gradient-to-br from-emerald-500 to-green-600 rounded-lg flex items-center justify-center">
-                  <span className="text-white text-sm">🦋</span>
-                </div>
-                <label className="text-lg font-semibold text-gray-900">Animal Friends</label>
-              </div>
-              <div className="flex space-x-2">
-                <button
-                  type="button"
-                  onClick={selectAllAnimals}
-                  className="px-3 py-1.5 bg-violet-100 text-violet-700 rounded-lg text-sm font-medium hover:bg-violet-200 transition-colors"
-                >
-                  All
-                </button>
-                <button
-                  type="button"
-                  onClick={clearAllAnimals}
-                  className="px-3 py-1.5 bg-gray-100 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-200 transition-colors"
-                >
-                  Clear
-                </button>
-              </div>
-            </div>
-            
-            <div className="bg-gradient-to-r from-blue-50 to-purple-50 rounded-xl p-3 mb-4">
-              <p className="text-sm font-medium text-gray-700 text-center">
-                Choose up to 6 animals • {selectedAnimals.length}/6 selected
-              </p>
-            </div>
-            
-            <div className="grid grid-cols-2 gap-3">
-              {STORY_ANIMALS.map((animal) => (
-                <button
-                  key={animal.name}
-                  type="button"
-                  onClick={() => toggleAnimal(animal.name)}
-                  disabled={!selectedAnimals.includes(animal.name) && selectedAnimals.length >= 6}
-                  className={`p-4 rounded-xl border-2 transition-all ${
-                    selectedAnimals.includes(animal.name)
-                      ? 'border-violet-300 bg-violet-50'
-                      : 'border-gray-200 bg-gray-50 hover:border-gray-300'
-                  } ${
-                    !selectedAnimals.includes(animal.name) && selectedAnimals.length >= 6
-                      ? 'opacity-50 cursor-not-allowed'
-                      : ''
-                  }`}
-                >
-                  <div className="text-center">
-                    <div className="text-3xl mb-2">{animal.emoji}</div>
-                    <div className="text-sm font-semibold text-gray-900 capitalize mb-1">
-                      {animal.name}
-                    </div>
-                    <div className="text-xs text-gray-600">
-                      {animal.lesson}
-                    </div>
-                  </div>
-                  
-                  {selectedAnimals.includes(animal.name) && (
-                    <div className="absolute -top-1 -right-1 w-6 h-6 bg-violet-500 rounded-full flex items-center justify-center">
-                      <span className="text-white text-xs">✓</span>
-                    </div>
-                  )}
-                </button>
-              ))}
-            </div>
-            
-            {selectedAnimals.length === 0 && (
-              <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-xl">
-                <p className="text-sm font-medium text-red-600 text-center">
-                  Please select at least one animal
-                </p>
-              </div>
-            )}
-          </div>
-        </div>
-      </div>
-
-      {/* Elegant CTA */}
-      <div className="fixed bottom-4 left-4 right-4 z-50">
-        <button 
-          onClick={handleSubmit}
-          disabled={!isValid || isSubmitting}
-          className={`w-full py-4 rounded-2xl font-semibold text-lg transition-all duration-300 ${
-            isValid && !isSubmitting
-              ? 'bg-gradient-to-r from-violet-600 to-purple-700 text-white shadow-lg hover:shadow-xl active:scale-[0.98]' 
-              : 'bg-gray-300 text-gray-500 shadow-sm'
-          }`}
-        >
-          {isSubmitting ? (
-            <span className="flex items-center justify-center space-x-3">
-              <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-              <span>Creating Story...</span>
-            </span>
-          ) : (
-            <span className="flex items-center justify-center space-x-2">
-              <span>✨</span>
-              <span>Create Magical Story</span>
-              <span>🚀</span>
-            </span>
-          )}
-        </button>
-      </div>
+      </footer>
     </div>
   );
 }

@@ -70,7 +70,7 @@ export function StoryViewer({ pages, childName }: StoryViewerProps) {
             <img
               src={currentPageData.imageUrl}
               alt={`Page ${currentPage + 1}`}
-              className="w-full h-full object-cover"
+              className="w-full"
             />
           ) : (
             <div className="flex items-center justify-center h-full">
@@ -88,7 +88,7 @@ export function StoryViewer({ pages, childName }: StoryViewerProps) {
               <div className="text-4xl mb-2">{currentPageData.animal}</div>
             )}
             <p className="text-lg font-medium whitespace-pre-line">
-              {currentPageData.text.replace('{{childName}}', childName)}
+              {(currentPageData.text || '').replace('{{childName}}', childName)}
             </p>
             {currentPageData.lesson && (
               <p className="text-sm text-muted-foreground italic">

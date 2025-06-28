@@ -150,12 +150,17 @@ export function PaymentCheckout({
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-violet-50 to-purple-100 p-4">
-      {/* Header */}
-      <div className="sticky top-0 z-50 bg-white/95 backdrop-blur-lg rounded-2xl border border-gray-200/50 shadow-lg mb-6">
-        <div className="px-5 py-3">
-          <h1 className="text-xl font-bold text-gray-900">Payment</h1>
-          <p className="text-sm text-gray-600">Complete your order securely</p>
-        </div>
+      {/* Simple Back Button Header */}
+      <div className="sticky top-0 z-50 mb-6">
+        <button
+          onClick={onBack}
+          className="flex items-center gap-2 text-gray-600 hover:text-gray-900 transition-colors py-2"
+        >
+          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+          </svg>
+          <span className="font-medium">Back</span>
+        </button>
       </div>
 
       {/* Order Summary */}

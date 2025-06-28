@@ -1,0 +1,134 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// User model for authentication and subscription management
+model User {
+  id                    String    @id @default(cuid())
+  email                 String    @unique
+  name                  String?
+  password              String?   // For credentials provider
+  emailVerified         DateTime?
+  image                 String?
+  
+  // Subscription fields
+  subscriptionPlan      String    @default("free") // free, story_explorer, family_storyteller, story_universe
+  subscriptionStatus    String    @default("active") // active, cancelled, past_due
+  subscriptionStartDate DateTime?
+  subscriptionEndDate   DateTime?
+  cancelAtPeriodEnd     Boolean   @default(false)
+  
+  // Usage tracking
+  monthlyStoriesUsed    Int       @default(0)
+  monthlyStoriesLimit   Int       @default(1)
+  totalStoriesCreated   Int       @default(0)
+  lastStoryCreatedAt    DateTime?
+  usageResetDate        DateTime  @default(now())
+  
+  // Timestamps
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+  lastLoginAt           DateTime?
+  
+  // Relations
+  accounts              Account[]
+  sessions              Session[]
+  stories               Story[]
+  payments              Payment[]
+  
+  @@index([email])
+  @@index([subscriptionPlan])
+}
+
+// Account model for OAuth providers
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+  
+  user              User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@unique([provider, providerAccountId])
+  @@index([userId])
+}
+
+// Session model for NextAuth
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@index([userId])
+}
+
+// Story model to persist generated stories
+model Story {
+  id               String    @id @default(cuid())
+  userId           String
+  title            String
+  childName        String
+  childAge         String
+  theme            Json      // Store theme details as JSON
+  customization    Json?     // Store customization options as JSON
+  pages            Json      // Store array of pages as JSON
+  metadata         Json?     // Additional metadata
+  
+  // Image generation tracking
+  imagesGenerated  Boolean   @default(false)
+  imageUrls        Json?     // Store array of image URLs
+  
+  // Timestamps
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+  
+  // Relations
+  user             User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@index([userId])
+  @@index([createdAt])
+}
+
+// Payment model for Razorpay transactions
+model Payment {
+  id                String    @id @default(cuid())
+  userId            String
+  razorpayOrderId   String    @unique
+  razorpayPaymentId String?   @unique
+  razorpaySignature String?
+  
+  amount            Int       // Amount in paise
+  currency          String    @default("INR")
+  status            String    // created, paid, failed
+  
+  planId            String    // Which plan was purchased
+  billingCycle      String?   // monthly, yearly
+  
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+  
+  // Relations
+  user              User      @relation(fields: [userId], references: [id])
+  
+  @@index([userId])
+  @@index([razorpayOrderId])
+  @@index([status])
+}
